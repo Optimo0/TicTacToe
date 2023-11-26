@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Tic-Tac-Toe</title>
+    <link th:href="@{/css/toastr.css}" type="text/css" rel="stylesheet"/>
+    <link th:href="@{/css/tictactoe.css}" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<div class="game-content">
+    <div class="card">
+        <div class="game-info">
+            <div class="text-white">Player 1: <span id="player1" class="text-red"></span></div>
+            <div class="text-white">Player 2: <span id="player2" class="text-red"></span></div>
+            <div class="text-white">Turn: <span id="turn" class="text-red"></span></div>
+            <div class="text-white">Winner: <span id="winner" class="text-red">-</span></div>
+        </div>
+<!--        <div id="board">-->
+<!--            <div th:each="row, rowIdx : ${board}" th:class="${#strings.concat('row row-', rowIdx.index + 1)}">-->
+<!--                <div th:each="cell, cellIdx : ${row}" th:class="${#strings.concat('cell cell-', cellIdx.index + 1)}">-->
+<!--                    <button th:if="${cell == ' '}" th:onclick="'makeMove(' + ${cellIdx.index + 1} + ')'" th:text="' '"></button>-->
+<!--                    <span th:if="${cell != ' '}" th:text="${cell}"></span>-->
+<!--                </div>-->
+<!--            </div>-->
+<!--        </div>-->
+        <div id="board">
+            <div th:each="row, state : ${board}" th:class="${#strings.concat('row row-', state.index)}">
+                <div th:each="cell, state2 : ${row}" th:class="${#strings.concat('cell cell-', state2.index)}">
+                    <button th:if="${cell == ' '}" th:onclick="'makeMove(' + ${state2.index} + ')'" th:text="' '"></button>
+                    <span th:if="${cell != ' '}" th:text="${cell}"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script th:src="@{/js/lib/sockjs.min.js}"></script>
+<script th:src="@{/js/lib/stomp.min.js}"></script>
+<script th:src="@{/js/lib/jquery-3.5.1.min.js}"></script>
+<script th:src="@{/js/lib/toastr.js}"></script>
+<script th:src="@{/js/tictactoe.js}"></script>
+</body>
+</html>
