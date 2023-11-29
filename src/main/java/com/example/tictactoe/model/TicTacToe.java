@@ -1,36 +1,50 @@
 package com.example.tictactoe.model;
 
+import com.example.tictactoe.converter.BoardConverter;
 import com.example.tictactoe.enumeration.GameState;
+import jakarta.persistence.*;
 import lombok.Data;
 
+
+import java.util.Date;
 import java.util.Objects;
 import java.util.UUID;
 
 /**
  * Class representing a Tic-Tac-Toe game.
- *
- * @author Joabson Arley do Nascimento
  */
 
+@Entity
+@Table(name = "tic_tac_toe")
 @Data
 public class TicTacToe {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
     private String gameId;
+    @Lob
+    @Convert(converter = BoardConverter.class)
+    @Column(length = 10000)
     private String[][] board;
     private String player1;
     private String player2;
     private String winner;
     private String turn;
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date startTime;
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date lastMoveTime;
     private GameState gameState;
-    public static final int BOARD_SIZE = 5;
+    public static final int BOARD_SIZE = 20;
     private static final int WINNING_LENGTH = 5;
-    private static final long TOTAL_GAME_TIME = 15 * 60 * 1000; // 15 minutes in milliseconds
-    private static final long MOVE_TIME_LIMIT = 30 * 1000; // 30 seconds in milliseconds
-    private long startTime;
-    private long lastMoveTime;
+    private static final long MOVE_TIME_LIMIT_MS = 30 * 1000; // 30 seconds per move
+    private static final long GAME_TIME_LIMIT_MS = 15 * 60 * 1000; // 15 minutes per game
+    private long currentPlayerMoveStartTime;
+    private long totalGameStartTime;
     private boolean timeout = false;
+    public TicTacToe() {}
 
     public TicTacToe(String player1, String player2) {
-        this.startTime = System.currentTimeMillis();
         this.gameId = UUID.randomUUID().toString();
         this.player1 = player1;
         this.player2 = player2;
@@ -42,6 +56,12 @@ public class TicTacToe {
             }
         }
         gameState = GameState.WAITING_FOR_PLAYER;
+        startGame();
+    }
+
+    public void startGame() {
+        this.startTime = new Date();
+        totalGameStartTime = System.currentTimeMillis();
     }
 
     /**
@@ -56,8 +76,14 @@ public class TicTacToe {
         if (Objects.equals(board[row][col], " ")) {
             board[row][col] = Objects.equals(player, player1) ? "X" : "O";
             turn = player.equals(player1) ? player2 : player1;
+            lastMoveTime = new Date();
             checkWinner();
             updateGameState();
+            startMoveTimer();
+            if (isMoveTimeLimitExceeded()) {
+                timeout = true;
+                updateGameState();
+            }
         }
     }
 
@@ -65,125 +91,85 @@ public class TicTacToe {
      * Check if there is a winner. If a winning combination is found,
      * the winner is set to the corresponding player.
      */
-
-//    private void checkWinner() {
-//        for (int i = 0; i < BOARD_SIZE; i++) {
-//            for (int j = 0; j <= BOARD_SIZE - WINNING_LENGTH; j++) {
-//                if (checkConsecutiveMarks(i, j, 1, 0)) {
-//                    setWinner(getMark(i, j));
-//                    return;
-//                }
-//            }
-//        }
-//
-//        for (int i = 0; i <= BOARD_SIZE - WINNING_LENGTH; i++) {
-//            for (int j = 0; j < BOARD_SIZE; j++) {
-//                if (checkConsecutiveMarks(i, j, 0, 1)) {
-//                    setWinner(getMark(i, j));
-//                    return;
-//                }
-//            }
-//        }
-//
-//        for (int i = 0; i <= BOARD_SIZE - WINNING_LENGTH; i++) {
-//            for (int j = 0; j <= BOARD_SIZE - WINNING_LENGTH; j++) {
-//                if (checkConsecutiveMarks(i, j, 1, 1) || checkConsecutiveMarks(i, j + WINNING_LENGTH - 1, 1, -1)) {
-//                    setWinner(getMark(i, j));
-//                    return;
-//                }
-//            }
-//        }
-//    }
-
-
     private void checkWinner() {
-        // Check horizontally
+        boolean isTie = true;
+
+        // Check horizontally, vertically, and diagonally
         for (int i = 0; i < BOARD_SIZE; i++) {
-            for (int j = 0; j <= BOARD_SIZE - 5; j++) {
-                boolean isWinningSequence = true;
-                for (int k = 0; k < 5; k++) {
-                    if (!Objects.equals(board[i][j + k], board[i][j]) || Objects.equals(board[i][j], " ")) {
-                        isWinningSequence = false;
-                        break;
-                    }
+            for (int j = 0; j < BOARD_SIZE; j++) {
+                if (checkSequence(i, j, 1, 0) ||   // Check horizontally
+                        checkSequence(i, j, 0, 1) ||   // Check vertically
+                        checkSequence(i, j, 1, 1) ||   // Check diagonally (top-left to bottom-right)
+                        checkSequence(i, j, 1, -1)) {  // Check diagonally (top-right to bottom-left)
+                    isTie = false;
+                    break;
                 }
-                if (isWinningSequence) {
-                    setWinner(getMark(i, j));
-                    return;
-                }
+            }
+            if (!isTie) {
+                break;
             }
         }
 
-        // Check vertically
-        for (int i = 0; i < BOARD_SIZE; i++) {
-            for (int j = 0; j <= BOARD_SIZE - 5; j++) {
-                boolean isWinningSequence = true;
-                for (int k = 0; k < 5; k++) {
-                    if (!Objects.equals(board[j + k][i], board[j][i]) || Objects.equals(board[j][i], " ")) {
-                        isWinningSequence = false;
-                        break;
-                    }
-                }
-                if (isWinningSequence) {
-                    setWinner(getMark(i, j));
-                    return;
-                }
-            }
-        }
-
-        // Check diagonally (top-left to bottom-right)
-        for (int i = 0; i <= BOARD_SIZE - 5; i++) {
-            for (int j = 0; j <= BOARD_SIZE - 5; j++) {
-                boolean isWinningSequence = true;
-                for (int k = 0; k < 5; k++) {
-                    if (!Objects.equals(board[i + k][j + k], board[i][j]) || Objects.equals(board[i][j], " ")) {
-                        isWinningSequence = false;
-                        break;
-                    }
-                }
-                if (isWinningSequence) {
-                    setWinner(getMark(i, j));
-                    return;
-                }
-            }
-        }
-
-        // Check diagonally (top-right to bottom-left)
-        for (int i = 0; i <= BOARD_SIZE - 5; i++) {
-            for (int j = BOARD_SIZE - 1; j >= 4; j--) {
-                boolean isWinningSequence = true;
-                for (int k = 0; k < 5; k++) {
-                    if (!Objects.equals(board[i + k][j - k], board[i][j]) || Objects.equals(board[i][j], " ")) {
-                        isWinningSequence = false;
-                        break;
-                    }
-                }
-                if (isWinningSequence) {
-                    setWinner(getMark(i, j));
-                    return;
-                }
-            }
+        // If no winner and the board is full, set winner to "TIE"
+        if (isTie && isBoardFull() && winner == null) {
+            setWinner("TIE");
         }
     }
 
-    private boolean checkConsecutiveMarks(int row, int col, int rowIncrement, int colIncrement) {
-        String mark = getMark(row, col);
-        for (int i = 1; i < WINNING_LENGTH; i++) {
-            if (!Objects.equals(mark, getMark(row + i * rowIncrement, col + i * colIncrement))) {
-                return false;
+    /**
+     * Helper method to check for winning sequence starting at position (i, j)
+     */
+    private boolean checkSequence(int row, int col, int rowIncrement, int colIncrement) {
+        int endRow = row + (WINNING_LENGTH - 1) * rowIncrement;
+        int endCol = col + (WINNING_LENGTH - 1) * colIncrement;
+
+        // Check if the sequence is within bounds
+        if (endRow >= 0 && endRow < BOARD_SIZE && endCol >= 0 && endCol < BOARD_SIZE) {
+            String mark = getMark(row, col);
+
+            // Check for a winning sequence
+            for (int k = 0; k < WINNING_LENGTH; k++) {
+                if (!Objects.equals(board[row + k * rowIncrement][col + k * colIncrement], mark) ||
+                        Objects.equals(board[row][col], " ")) {
+                    return false;
+                }
             }
+
+            // If a winning sequence is found, set the winner
+            setWinner(mark);
+            return true;
         }
-        return true;
+
+        return false;
     }
 
     private String getMark(int row, int col) {
         return board[row][col];
     }
 
+    public void startMoveTimer() {
+        currentPlayerMoveStartTime = System.currentTimeMillis();
+    }
+
+    public boolean isMoveTimeLimitExceeded() {
+        long elapsedTime = System.currentTimeMillis() - currentPlayerMoveStartTime;
+        return elapsedTime > MOVE_TIME_LIMIT_MS;
+    }
+
+    public boolean isGameTimeLimitExceeded() {
+        long elapsedTime = System.currentTimeMillis() - totalGameStartTime;
+        return elapsedTime > GAME_TIME_LIMIT_MS;
+    }
+
     /**
      * Updates the game state based on the current state of the game.
      */
     private void updateGameState() {
+        if (isGameTimeLimitExceeded()) {
+            gameState = GameState.TIME_LIMIT_EXCEEDED;
+            timeout = true;
+            return;
+        }
         if (timeout) {
             gameState = turn.equals(player1) ? GameState.PLAYER2_WON : GameState.PLAYER1_WON;
         } else if (winner != null) {

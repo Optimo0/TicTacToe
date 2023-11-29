@@ -9,7 +9,8 @@ public enum GameState {
     PLAYER2_TURN("Player 2's turn."),
     PLAYER1_WON("Player 1 won."),
     PLAYER2_WON("Player 2 won."),
-    TIE("Tie.");
+    TIE("Tie."),
+    TIME_LIMIT_EXCEEDED("Time limit exceeded.");
 
     String description;
 

@@ -3,6 +3,9 @@ package com.example.tictactoe.model.dto;
 import com.example.tictactoe.model.TicTacToe;
 import com.example.tictactoe.enumeration.GameState;
 import lombok.Data;
+import lombok.Getter;
+
+import java.util.Date;
 
 @Data
 public class TicTacToeMessage implements Message {
@@ -17,6 +20,8 @@ public class TicTacToeMessage implements Message {
     private int move;
     private GameState gameState;
     private String sender;
+    private Date lastMoveTime;
+    private Date startTime;
 
     public TicTacToeMessage() {
     }
@@ -29,5 +34,7 @@ public class TicTacToeMessage implements Message {
         this.turn = game.getTurn();
         this.board = game.getBoard();
         this.gameState = game.getGameState();
+        this.lastMoveTime = game.getLastMoveTime();
+        this.startTime = game.getStartTime();
     }
 }

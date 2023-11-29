@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Tic-Tac-Toe Leaderboard</title>
+    <link th:href="@{/css/leaderboard.css}" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<div style="position: absolute; top: 10px; right: 10px; background-color: #04AA6D; border: none; padding: 15px 32px; text-align: center; cursor: pointer" >
+    <a style="text-decoration: none; font-size: 16px;  color: white;" href="/index">Game</a>
+</div>
+<div class="leaderboard-content">
+    <h2>Leaderboard</h2>
+    <table>
+        <thead>
+        <tr>
+            <th>Player 1</th>
+            <th>Player 2</th>
+            <th>Winner</th>
+            <th>Time</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="game : ${leaderboard}">
+            <td th:text="${game.player1}"></td>
+            <td th:text="${game.player2}"></td>
+            <td th:text="${game.winner}"></td>
+            <td th:text="${#dates.format(game.lastMoveTime, 'yyyy-MM-dd HH:mm:ss')}"></td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

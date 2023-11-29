@@ -11,8 +11,6 @@ import static com.example.tictactoe.model.TicTacToe.BOARD_SIZE;
 /**
  * Manager class for the Tic-Tac-Toe games.
  * Handles adding and removing players from games, and storing and retrieving the current games.
- *
- * @author Joabson Arley do Nascimento
  */
 public class TicTacToeManager {
 
