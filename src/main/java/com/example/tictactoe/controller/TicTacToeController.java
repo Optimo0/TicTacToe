@@ -16,7 +16,7 @@ import static com.example.tictactoe.model.TicTacToe.BOARD_SIZE;
 
 
 /**
- * Controller class for handling HTTP requests and rendering the Tic-Tac-Toe game page.
+ * Controller class for handling HTTP requests and rendering the Tic-Tac-Toe game.
  */
 @Controller
 @RequestMapping("/")
@@ -30,8 +30,6 @@ public class TicTacToeController {
 
     /**
      * Renders the Tic-Tac-Toe game page with an empty board.
-     *
-     * @return the model and view for the Tic-Tac-Toe game page
      */
     @GetMapping
     public ModelAndView index() {
@@ -40,8 +38,6 @@ public class TicTacToeController {
 
     /**
      * Renders the Tic-Tac-Toe game page with an empty board.
-     *
-     * @return the model and view for the Tic-Tac-Toe game page
      */
     @GetMapping("/index")
     public ModelAndView ticTacToe() {
@@ -54,6 +50,9 @@ public class TicTacToeController {
         return modelAndView;
     }
 
+    /**
+     * Renders the Tic-Tac-Toe leaderboard page with a table that shows game information from database.
+     */
     @GetMapping("/leaderboard")
     public ModelAndView getLeaderboard() {
         List<TicTacToe> leaderboard = ticTacToeRepository.findTop10ByOrderByLastMoveTimeAsc();

@@ -15,8 +15,6 @@ const sendMessage = (message) => {
  * @param {Number} move - The index of the cell where the move should be made.
  */
 const makeMove = (move) => {
-    console.log(`Making move: ${move}`);
-    console.log("Game:", game);
     sendMessage({
         type: "game.move",
         move: move,
@@ -35,12 +33,10 @@ const messagesTypes = {
         updateGame(message);
     },
     "game.gameOver": (message) => {
-        console.log("Received game.gameOver message", message);
         updateGame(message);
         if (message.gameState === 'TIE') {
             toastr.success(`Game over! It's a tie!`);
         } else {
-            console.log("Winner information:", message.winner);
             showWinner(message.winner);
         }
     },
@@ -64,6 +60,10 @@ const messagesTypes = {
     "game.left": (message) => {
         updateGame(message);
         if (message.winner) showWinner(message.winner);
+    },
+    "game.timeout": (message) => {
+        updateGame(message);
+        document.getElementById("turn").innerHTML = game.turn;
     },
     "error": (message) => {
         toastr.error(message.content);
@@ -101,6 +101,7 @@ const messageToGame = (message) => {
 
 /**
  * Displays a success message with the name of the winning player.
+ * And changes the background color of winning cells using {getWinnerPositions} method.
  * @param {String} winner - The name of the winning player.
  */
 const showWinner = (winner) => {
@@ -120,6 +121,10 @@ const showWinner = (winner) => {
     }
 }
 
+/**
+ * Returns the corresponding player name based on the condition.
+ * @param {String} mark - Assigns X to corresponding player.
+ */
 const getPlayerName = (mark) => {
     return mark === "X" ? game.player1 : game.player2;
 }
@@ -200,9 +205,7 @@ const connect = () => {
     const socket = new SockJS('/ws');
     stompClient = Stomp.over(socket);
     stompClient.connect({}, function (frame) {
-        console.log('Connected to WebSocket');
         stompClient.subscribe('/topic/game.state', function (message) {
-            console.log('Received WebSocket message:', message);
             handleMessage(JSON.parse(message.body));
             updateTimers();
         });
@@ -276,30 +279,36 @@ const updateGame = (message) => {
     updateTimers(lastMoveTime, startTime);
 }
 
-
+/**
+ * Update timers displayed in the HTML document based on the current state of the game object.
+ * and make an alert if player didn't make a move in 30 seconds.
+ */
 const updateTimers = () => {
-    console.log("Updating timers...");
     const moveTimerElement = document.getElementById("move-timer");
     const gameTimerElement = document.getElementById("game-timer");
 
     if (game !== null) {
-        const moveTimeLeft = game.lastMoveTime ? Math.max(0, Math.floor((game.turn === player ? 30 : 0) - (Date.now() - game.lastMoveTime) / 1000)) : 30;
+        const moveTimeLeft = game.lastMoveTime ? Math.max(0, Math.floor((30 - (Date.now() - game.lastMoveTime) / 1000))) : 30;
         const gameTimeLeft = game.startTime ? Math.max(0, Math.floor((15 * 60 - (Date.now() - game.startTime) / 1000))) : 900;
 
         moveTimerElement.innerHTML = `Move Time Left: ${formatTime(moveTimeLeft)}`;
         gameTimerElement.innerHTML = `Game Time Left: ${formatTime(gameTimeLeft)}`;
 
-        if (moveTimeLeft <= 0 && !game.timeout) {
+        if (moveTimeLeft === 1 && !game.timeout) {
+            // Display Toastr alert for timeout
+            const nextPlayer = game.turn === game.player1 ? game.player2 : game.player1;
+            toastr.warning('Time is up! It is now ' + nextPlayer + "'s turn.");
             switchTurn();
         }
     }
 };
 
-// Function to switch turn when move time exceeds the limit
+/**
+ * Sends a message to the server using the {sendMessage} function. and switches player turn based on that.
+ */
 const switchTurn = () => {
     if (game !== null && !game.timeout) {
         game.timeout = true;
-        game.turn = game.turn === game.player1 ? game.player2 : game.player1;
 
         // Notify the server about the turn switch
         sendMessage({
@@ -310,21 +319,20 @@ const switchTurn = () => {
             gameId: game.gameId,
             lastMoveTime: game.lastMoveTime
         });
-
-        // Update the UI
-        updateBoard(game.board);
-        updateTimers();
     }
 };
 
-
+/**
+ * When the window loads, it establishes a connection, and then starts updating timers every second.
+ */
 window.onload = function () {
     connect();
     setInterval(updateTimers, 1000);
 };
 
-
-// Format time as HH:mm:ss
+/**
+ *  @param {date} time Takes a time parameter and formats it into a string representation of hours, minutes, and seconds.
+ */
 const formatTime = (time) => {
     if (time instanceof Date) {
         const hours = String(time.getHours()).padStart(2, '0');

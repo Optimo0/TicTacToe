@@ -13,7 +13,6 @@ import java.util.UUID;
 /**
  * Class representing a Tic-Tac-Toe game.
  */
-
 @Entity
 @Table(name = "tic_tac_toe")
 @Data
@@ -42,6 +41,8 @@ public class TicTacToe {
     private long currentPlayerMoveStartTime;
     private long totalGameStartTime;
     private boolean timeout = false;
+    private String timedOutPlayer;
+
     public TicTacToe() {}
 
     public TicTacToe(String player1, String player2) {
@@ -82,9 +83,14 @@ public class TicTacToe {
             startMoveTimer();
             if (isMoveTimeLimitExceeded()) {
                 timeout = true;
+                timedOutPlayer = player;  // Set the timed-out player
                 updateGameState();
             }
         }
+    }
+
+    public boolean hasTimedOut(String player) {
+        return timedOutPlayer != null && timedOutPlayer.equals(player);
     }
 
     /**
@@ -164,13 +170,15 @@ public class TicTacToe {
     /**
      * Updates the game state based on the current state of the game.
      */
-    private void updateGameState() {
+    public void updateGameState() {
         if (isGameTimeLimitExceeded()) {
             gameState = GameState.TIME_LIMIT_EXCEEDED;
             timeout = true;
             return;
         }
+
         if (timeout) {
+            turn = player1.equals(turn) ? player2 : player1;  // Change turn when timeout occurs
             gameState = turn.equals(player1) ? GameState.PLAYER2_WON : GameState.PLAYER1_WON;
         } else if (winner != null) {
             gameState = turn.equals(player1) ? GameState.PLAYER1_WON : GameState.PLAYER2_WON;

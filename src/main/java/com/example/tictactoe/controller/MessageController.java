@@ -20,6 +20,8 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 import java.util.Date;
 import java.util.Objects;
+import java.util.Timer;
+import java.util.TimerTask;
 
 
 @Controller
@@ -113,6 +115,15 @@ public class MessageController {
         }
 
         if (game.getTurn().equals(player)) {
+            // Time out a player who hasn't made a move in time.
+            if (game.hasTimedOut(player)) {
+                TicTacToeMessage errorMessage = new TicTacToeMessage();
+                errorMessage.setType("error");
+                errorMessage.setContent("Time has run out for your move.");
+                this.messagingTemplate.convertAndSendToUser(player, "/queue/errors", errorMessage);
+                return;
+            }
+
             game.makeMove(player, move);
 
             TicTacToeMessage gameStateMessage = new TicTacToeMessage(game);
@@ -125,13 +136,48 @@ public class MessageController {
                 gameOverMessage.setType("game.gameOver");
                 this.messagingTemplate.convertAndSend("/topic/game." + gameId, gameOverMessage);
                 ticTacToeManager.removeGame(gameId);
+            } else {
+                // Start the timer for the next player's move
+                game.startMoveTimer();
+
+                // Schedule a task to check for timeout and change turn if necessary
+                scheduleTimeoutCheck(gameId, game.getTurn());
             }
         }
     }
 
     /**
+     * A task to check for timeout after 30 seconds
+     */
+    private void scheduleTimeoutCheck(String gameId, String currentTurn) {
+        Timer timer = new Timer();
+        timer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                TicTacToe game = ticTacToeManager.getGame(gameId);
+                if (game != null && game.getTurn().equals(currentTurn)) {
+                    // Timeout occurred, change turn and notify clients
+                    game.startMoveTimer();  // Reset the move timer for the new turn
+                    String nextTurn = game.getTurn().equals(game.getPlayer1()) ? game.getPlayer2() : game.getPlayer1();
+                    game.setTurn(nextTurn);
+
+                    TicTacToeMessage timeoutMessage = new TicTacToeMessage(game);
+                    timeoutMessage.setType("game.timeout");
+                    messagingTemplate.convertAndSend("/topic/game." + gameId, timeoutMessage);
+
+                    // Continue the game loop by scheduling the next timeout check
+                    scheduleTimeoutCheck(gameId, nextTurn);
+
+                    // Update the game state after changing the turn
+                    game.updateGameState();
+                }
+            }
+        }, 30 * 1000);  // 30 seconds
+    }
+
+    /**
      * Saves game to database
-     * */
+     */
     private void saveGameToDatabase(TicTacToe game) {
         TicTacToe savedGame = new TicTacToe();
         savedGame.setGameId(game.getGameId());
@@ -148,7 +194,7 @@ public class MessageController {
 
     /**
      * Checks who the winner is and assigns corresponding name.
-     * */
+     */
     private String getPlayerName(String mark, String player1, String player2) {
         if ("X".equals(mark)) {
             return player1;
@@ -158,6 +204,11 @@ public class MessageController {
         return "TIE";
     }
 
+    /**
+     * Ensures that the server responds appropriately when a player disconnects,
+     * taking into account the state of the game and performing necessary actions,
+     * such as updating the game state and notifying other players.
+     */
     @EventListener
     public void SessionDisconnectEvent(SessionDisconnectEvent event) {
         StompHeaderAccessor headerAccessor = StompHeaderAccessor.wrap(event.getMessage());
@@ -179,6 +230,9 @@ public class MessageController {
         }
     }
 
+    /**
+     * Updates the game state and notifies clients when a player disconnects.
+     */
     private void handlePlayerDisconnect(TicTacToe game, String player) {
         if (game.getPlayer1().equals(player)) {
             game.setPlayer1(null);
@@ -204,6 +258,9 @@ public class MessageController {
         ticTacToeManager.removeGame(game.getGameId());
     }
 
+    /**
+     * Converts TicTacToe game object into corresponding TicTacToeMessage to encapsulate the process.
+     */
     private TicTacToeMessage gameToMessage(TicTacToe game) {
         TicTacToeMessage message = new TicTacToeMessage();
         message.setGameId(game.getGameId());
